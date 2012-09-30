@@ -2,6 +2,64 @@
 
 bool firstTime = true;
 
+DynamicPlane::DynamicPlane(list<XnPoint3D>* pList, int width, int height, int maskS, int* rgbPlane, int planeNum, CameraProperties* camera , const vector<vector<double>>* hist, IplImage* hsvImg, ofstream* outDebug)
+{
+	//init global variables
+	maskSize = maskS;
+	colorPlane = rgbPlane;
+	cam = camera;
+	firstTime = true;
+	histogram = hist;
+	hsvImage = hsvImg;
+
+	//intialializes the arrays
+	pointCoors[0] = NULL;
+	pointDepth[0] = NULL;
+
+	//store the seed
+	(*outDebug) << "Cam " << cam->getCamId() << " List size: " << pList->size() << endl;
+	points2Check.assign(pList->begin(),pList->end());
+
+
+	//add points2Check to the plane fitting
+	planeParameters = cvCreateMat(3,1,CV_32FC1);
+	calculatePlaneParams();
+//	checkNoise();
+	(*outDebug) << "Cam " << cam->getCamId() << " Parameters calculated" << endl;
+	//initializes the mask and binary image
+	binaryImg = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 1);
+	mask = cvCreateImage(cvSize(maskS, maskS), IPL_DEPTH_8U, 1);
+	Utils::initImage(mask, 1);
+	Utils::initImage(binaryImg , 0);
+	//updates the binaryImage with the points in 'points2Check'
+	list<XnPoint3D>::iterator it;
+	for (it=points2Check.begin(); it!=points2Check.end(); ++it)
+	{
+		XnPoint3D p = *it;
+		((uchar*)(binaryImg->imageData + (int)p.Y*binaryImg->widthStep))[(int)p.X] = 255;
+	}
+	(*outDebug) << "Cam " << cam->getCamId() << " Binary image initialized" << endl;
+	////Create window name
+	//char windowName[80];
+	//char idCam[10];
+	//itoa(cam->getCamId(), idCam, 10);
+	//strcpy(windowName, "Binary ");
+	//strcat(windowName, idCam);
+
+	//cvNamedWindow(windowName, 1);
+	//cvShowImage(windowName, binaryImg);
+	//cvWaitKey(0);
+
+
+	//CHOOSE ONE POINT AS A ORIGIN OF THE LOCAL COORDINATE SYSTEM.
+	origin = *points2Check.begin();
+
+
+	Utils::createCoordinateOutStream(&xPlaneCoor, &yPlaneCoor, &zPlaneCoor, planeNum, cam->getCamId());
+	Utils::createGeneralOutStream(&planeParam, "Parameters_", planeNum, cam->getCamId());
+	(*outDebug) << "Cam " << cam->getCamId() << " Dynamic constructor finished" << endl;
+}
+
 DynamicPlane::DynamicPlane(list<XnPoint3D>* pList, int width, int height, int maskS, int* rgbPlane, int planeNum, CameraProperties* camera)
 {
 	//init global variables
@@ -9,6 +67,7 @@ DynamicPlane::DynamicPlane(list<XnPoint3D>* pList, int width, int height, int ma
 	colorPlane = rgbPlane;
 	cam = camera;
 	firstTime = true;
+	histogram = NULL;
 
 	//intialializes the arrays
 	pointCoors[0] = NULL;
@@ -55,6 +114,7 @@ DynamicPlane::DynamicPlane(list<XnPoint3D>* pList, int width, int height, int ma
 	Utils::createCoordinateOutStream(&xPlaneCoor, &yPlaneCoor, &zPlaneCoor, planeNum, cam->getCamId());
 	Utils::createGeneralOutStream(&planeParam, "Parameters_", planeNum, cam->getCamId());
 }
+
 
 DynamicPlane::DynamicPlane(XnPoint3D* p, int width, int height, int maskS, int* rgbPlane, int planeNum, CameraProperties* camera)
 {
@@ -277,7 +337,7 @@ void DynamicPlane::checkNeighbours(const XnPoint3D* p, const XnDepthPixel* pDept
 				pNe3D_local.Y = pNe3D.Y-origin.Y;
 				pNe3D_local.Z = pNe3D.Z-origin.Z;*/
 
-				if (depth != 0 && isInPlane(&pNe3D))
+				if (depth != 0 && isInPlane(&pNe3D) && isHSVColor(&pNe))
 				{
 					tmp.push_back(pNe);
 					*ptr = 255; 
@@ -287,6 +347,40 @@ void DynamicPlane::checkNeighbours(const XnPoint3D* p, const XnDepthPixel* pDept
 		}
 		contY += 2*maskOffset;
 	}
+}
+
+
+bool DynamicPlane::isHSVColor(XnPoint3D* p)
+{
+	if (histogram == NULL)
+		return true;
+	else
+	{
+		int step = 256/8;
+		const uchar* ptr = (const uchar*)(hsvImage->imageData + (int)p->Y*hsvImage->widthStep);
+		int h = ptr[(int)p->X*3];
+		int s = ptr[(int)p->X*3 + 1];
+		int hBin = h/step;
+		int sBin = s/step;
+		double prob = (*histogram)[hBin][sBin];
+			
+		bool out = (20*prob) > Utils::COLORFILTER_THRESHOLD;
+		//if (!out)
+		//{
+		//	int x = p->X;
+		//	int y = p->Y;
+		//	uchar* ptr1 = (uchar*)(hsvImage->imageData + y*hsvImage->widthStep);
+		//	ptr1[x*3] = 0;
+		//	ptr1[x*3+1] = 0;
+		//	ptr1[x*3+2] = 0;
+		//	//cvCircle(hsvImage, cvPoint(p->X, p->Y),2, cvScalar(0,0,0),2);
+		//	cvShowImage("Prueba", hsvImage);
+		//	cvWaitKey(0);
+		//	cvDestroyWindow("Prueba");
+		//}
+		return  out;
+	}
+
 }
 
 /*
@@ -380,6 +474,8 @@ void DynamicPlane::calculatePlaneParams()
 
 	cvInvert(&coordinatesMat, coordinatesMatPseudo, CV_SVD);
 	cvMatMul(coordinatesMatPseudo, &depthMat, planeParameters);
+
+	cvReleaseMat(&coordinatesMatPseudo);
 
 }
 

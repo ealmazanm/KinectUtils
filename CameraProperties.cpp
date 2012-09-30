@@ -17,9 +17,9 @@ CameraProperties::~CameraProperties(void)
 {
 }
 
-Context* CameraProperties::getContext()
+Context* CameraProperties::getContext() const
 {
-	return &context;
+	return (Context*)&context;
 }
 
 Recorder* CameraProperties::getRecorderNode()
@@ -27,22 +27,22 @@ Recorder* CameraProperties::getRecorderNode()
 	return &recordNode;
 }
 
-DepthGenerator* CameraProperties::getDepthNode()
+DepthGenerator* CameraProperties::getDepthNode() const
 {
-	return &depthNode;
+	return (DepthGenerator*)&depthNode;
 }
 	
-ImageGenerator* CameraProperties::getImageNode()
+ImageGenerator* CameraProperties::getImageNode() const
 {
-	return &imageNode;
+	return (ImageGenerator*)&imageNode;
 }
 
-CvMat* CameraProperties::getRotationMatrix()
+CvMat* CameraProperties::getRotationMatrix() const
 {
 	return rotation;
 }
 
-CvMat* CameraProperties::getTranslationMatrix()
+CvMat* CameraProperties::getTranslationMatrix() const
 {
 	return translation;
 }
@@ -83,7 +83,7 @@ void CameraProperties::setCamId(int id)
 	camId = id;
 }
 
-int CameraProperties::getCamId()
+int CameraProperties::getCamId() const
 {
 	return camId;
 }
@@ -146,14 +146,14 @@ void CameraProperties::setPixelSize(double ps)
 	pSize = ps;
 }
 
-void CameraProperties::backProjectPoint(XnPoint3D* p, XnPoint3D* p3D)
+void CameraProperties::backProjectPoint(XnPoint3D* p, XnPoint3D* p3D) const
 {
 	p3D->X = (p->X - ox)*pSize*2*p->Z/fx;
 	p3D->Y = (p->Y - oy)*pSize*2*p->Z/fy;
 	p3D->Z = p->Z;
 }
 
-void CameraProperties::projectPoint(XnPoint3D* p3D, XnPoint3D* p2D)
+void CameraProperties::projectPoint(XnPoint3D* p3D, XnPoint3D* p2D) const
 {
 	p2D->X = (fx *p3D->X)/(pSize*2*p3D->Z) + ox;
 	p2D->Y = (fy*p3D->Y)/(pSize*2*p3D->Z) + oy;	

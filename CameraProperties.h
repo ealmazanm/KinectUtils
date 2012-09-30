@@ -17,14 +17,14 @@ class CameraProperties
 public:
 	CameraProperties(void);
 	~CameraProperties(void);
-	Context* getContext();
-	void projectPoint(XnPoint3D* p3D, XnPoint3D* p2D);
-	void backProjectPoint(XnPoint3D* centroid, XnPoint3D* centroid3D);
-	DepthGenerator* getDepthNode();
-	ImageGenerator* getImageNode();
+	Context* getContext() const;
+	void projectPoint(XnPoint3D* p3D, XnPoint3D* p2D) const;
+	void backProjectPoint(XnPoint3D* centroid, XnPoint3D* centroid3D) const; //A read only function
+	DepthGenerator* getDepthNode() const;
+	ImageGenerator* getImageNode() const;
 	Recorder* getRecorderNode();
-	CvMat* getRotationMatrix();
-	CvMat* getTranslationMatrix();
+	CvMat* getRotationMatrix() const;
+	CvMat* getTranslationMatrix() const;
 	CvMat* getIntrinsicMatrix();
 	CvMat* getRGBIntrinsicMatrix();
 	CvMat* getDistortionCoeffs();
@@ -44,7 +44,7 @@ public:
 	void setRotationMatrix(CvMat*);
 	void setTranslationMatrix(CvMat*);
 	void setCamId(int);
-	int getCamId();
+	int getCamId() const; //A read only function
 	
 
 private:

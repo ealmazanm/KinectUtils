@@ -34,6 +34,7 @@ class DynamicPlane
 public:
 	DynamicPlane(XnPoint3D* p, int width, int height, int maskSize, int* rgbPlane, int planeNum, CameraProperties* cam);
 	DynamicPlane(list<XnPoint3D>* pList, int width, int height, int maskSize, int* rgbPlane, int planeNum, CameraProperties* cam);
+	DynamicPlane(list<XnPoint3D>* pList, int width, int height, int maskSize, int* rgbPlane, int planeNum, CameraProperties* cam, const vector<vector<double>>* hist, IplImage* hsvImg, ofstream* outDebug);
 	~DynamicPlane(void);
 	void makePlaneGrow(char* winName, IplImage* depthImage, const XnDepthPixel* pDepthMap);
 	list<XnPoint3D>* getPlanePoints();
@@ -42,6 +43,7 @@ public:
 
 
 private:
+	bool DynamicPlane::isHSVColor(XnPoint3D* p);
 	void checkNoise();
 	void checkNeighbours(const XnPoint3D* p, const XnDepthPixel* pDepthMap, const CvRect* rect);
 	bool isInList(XnPoint3D* p, list<XnPoint3D>* lst);
@@ -72,6 +74,9 @@ private:
 	CameraProperties* cam;
 
 	XnPoint3D centroid2D;
+
+	const vector<vector<double>>* histogram;
+	IplImage* hsvImage;
 
 };
 

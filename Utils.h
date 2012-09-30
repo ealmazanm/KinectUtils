@@ -30,11 +30,14 @@ public:
 	Utils(void);
 
 	~Utils(void);
+
+	const static double COLORFILTER_THRESHOLD;
+
 	//Create a matrix 3xn with the values of the vector
-	static void fillTheMatrix(vector<XnPoint3D>* src, CvMat* mat);
+	static void fillTheMatrix(vector<XnPoint3D*>* src, CvMat* mat);
 
 	//Rotate and translate a point using the values from cam.
-	static void transformPoint(XnPoint3D* p3D, CameraProperties* cam);
+	static void transformPoint(XnPoint3D* p3D, const CameraProperties& cam);
 
 	//Load the intrinsic and extrinsic parameters for cam (check paths)
 	static void loadCameraParameters(CameraProperties* cam);
@@ -123,11 +126,12 @@ public:
 	static void showsArrayElements(float*, ostream*);
 
 	//Create a matrix from p with rows and cols defined.
-	static void fillTheMatrix(CvMat* mat, XnPoint3D* p, int rows, int cols);
+	static void fillTheMatrix(CvMat* mat, const XnPoint3D* p, int rows, int cols);
 	//Project/Backproject a point p2D into the space in the cam coordinate system.
 	static void backProjectPoint(XnPoint3D* p2D, XnPoint3D* p3D, CameraProperties* cam);
 	static void backProjectPointsRGBD(int, CameraProperties* cam, XnPoint3D* proj, XnPoint3D* backProj);
 	static void projectPointsRGBD(int, CameraProperties*, XnPoint3D* rworld, XnPoint3D* proj);
+	static void backProjectArrayOfPoints(XnPoint3D* out, XnPoint3D* in, const CameraProperties& cam, int numPoints);
 
 	static void createPlanePath(vector<char*>* filePaths, int camId, char* suffix, int nPlanes);
 	static void createPlanePath_II(vector<char*>* filePaths, int camId, char* suffix, int nPlanes,vector<int>* planePostions);

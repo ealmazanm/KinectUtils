@@ -9,6 +9,8 @@ Utils::~Utils(void)
 {
 }
 
+const double Utils::COLORFILTER_THRESHOLD = 0.01;
+
 void Utils::loadCameraParameters(CameraProperties* cam)
 {
 	loadCameraIntrinsics(cam);
@@ -17,16 +19,27 @@ void Utils::loadCameraParameters(CameraProperties* cam)
 
 void Utils::loadCameraExtrinsics(CameraProperties* cam)
 {
+//	CvMat* transT = cvCreateMat(3,1, CV_32FC1);
+//	CvMat* trans = cvCreateMat(1,3, CV_32FC1);
 	if (cam->getCamId() == 1)
 	{
-		cam->setRotationMatrix((CvMat*)cvLoad(filePaths::CAM1_2_ROTATION_FILEPATH));
-		cam->setTranslationMatrix((CvMat*)cvLoad(filePaths::CAM1_2_TRANSLATION_FILEPATH));
+		cam->setRotationMatrix((CvMat*)cvLoad("D:\\CameraCalibrations\\extrinsics\\rotation_12.yml"));
+		cam->setTranslationMatrix((CvMat*)cvLoad("D:\\CameraCalibrations\\extrinsics\\translation_12.yml"));
+//		cam->setRotationMatrix((CvMat*)cvLoad(filePaths::CAM1_2_ROTATION_FILEPATH));
+//		trans = (CvMat*)cvLoad(filePaths::CAM1_2_TRANSLATION_FILEPATH);
+//		cvTranspose(trans, transT);
+//		cam->setTranslationMatrix(transT);
 	}
 	else
 	{
-		cam->setRotationMatrix((CvMat*)cvLoad(filePaths::CAM2_1_ROTATION_FILEPATH));
-		cam->setTranslationMatrix((CvMat*)cvLoad(filePaths::CAM2_1_TRANSLATION_FILEPATH));
+		cam->setRotationMatrix((CvMat*)cvLoad("D:\\CameraCalibrations\\extrinsics\\rotation_21.yml"));
+		cam->setTranslationMatrix((CvMat*)cvLoad("D:\\CameraCalibrations\\extrinsics\\translation_21.yml"));
+//		cam->setRotationMatrix((CvMat*)cvLoad(filePaths::CAM2_1_ROTATION_FILEPATH));
+//		trans = (CvMat*)cvLoad(filePaths::CAM2_1_TRANSLATION_FILEPATH);
+//		cvTranspose(trans, transT);
+//		cam->setTranslationMatrix(transT);
 	}
+//	cvReleaseMat(&trans);
 }
 void Utils::loadCameraIntrinsics(CameraProperties* cam)
 {
@@ -96,9 +109,9 @@ void Utils::rgbdInit(CameraProperties* cam, int idCam)
 	cam->getDepthNode()->SetMapOutputMode(mapModeVGA);
 
 		
-	XnBool isSupported = cam->getDepthNode()->IsCapabilitySupported("AlternativeViewPoint");
-	if (isSupported)
-		cam->getDepthNode()->GetAlternativeViewPointCap().SetViewPoint(*cam->getImageNode());
+	//XnBool isSupported = cam->getDepthNode()->IsCapabilitySupported("AlternativeViewPoint");
+	//if (isSupported)
+	//	cam->getDepthNode()->GetAlternativeViewPointCap().SetViewPoint(*cam->getImageNode());
 	
 	//extra parameters
 	double pSize;
@@ -294,6 +307,7 @@ void Utils::fillImageDataFull(IplImage* image, const XnRGB24Pixel* pImageMap)
 	for (int y=0; y<XN_VGA_Y_RES; y++)
 	{
 		uchar *ptr = (uchar*)image->imageData + y*image->widthStep;
+		//for (int x=(XN_VGA_X_RES-1); x>= 0; x--)
 		for (int x=0; x<XN_VGA_X_RES; x++)
 		{
 			ptr[3*x] = pImageMap->nBlue;
@@ -707,7 +721,7 @@ void Utils::convertToHomogeneus(XnPoint3D p, CvMat* h)
 	CV_MAT_ELEM( *h, float, 3, 0 ) = (float) 1.0;
 }
 
-void Utils::fillTheMatrix(CvMat* mat, XnPoint3D* p, int rows, int cols)
+void Utils::fillTheMatrix(CvMat* mat, const XnPoint3D* p, int rows, int cols)
 {
 	vector<float> point(3);
 	point[0] = p->X;
@@ -989,6 +1003,14 @@ float Utils::calculatePlaneDistance(const CvMat* param, const CvMat* normal)
 	return -p[2]/(p[0]*n[0] + p[1]*n[1] - n[2]);
 }
 
+void Utils::backProjectArrayOfPoints(XnPoint3D* out, XnPoint3D* in, const CameraProperties& cam, int numPoints)
+{
+	for (int i = 0; i < numPoints; i++)
+	{
+		cam.backProjectPoint(&in[i], &out[i]);
+	}
+}
+
 void Utils::backProjectPointsRGBD(int nPoints, CameraProperties* cam, XnPoint3D* proj, XnPoint3D* backProj)
 {		
 	CvMat* rotation = cvCreateMat(3,3,CV_32FC1);
@@ -1221,10 +1243,10 @@ int Utils::getNumberOfFiles(char* folderPath)
 	return out;
 }
 
-void Utils::fillTheMatrix(vector<XnPoint3D>* src, CvMat* mat)
+void Utils::fillTheMatrix(vector<XnPoint3D*>* src, CvMat* mat)
 {
 	int total = src->size();
-	vector<XnPoint3D>::iterator iter;
+	vector<XnPoint3D*>::iterator iter;
 	int i = 0;
 
 	//pointer to the begining of each row
@@ -1234,27 +1256,27 @@ void Utils::fillTheMatrix(vector<XnPoint3D>* src, CvMat* mat)
 
 	for (iter = src->begin(); iter != src->end(); iter++)
 	{
-		XnPoint3D p = *iter;
-		ptr_Mat_R1[i] = p.X;
-		ptr_Mat_R2[i] = p.Y;
-		ptr_Mat_R3[i] = p.Z;
+		XnPoint3D* p = *iter;
+		ptr_Mat_R1[i] = p->X;
+		ptr_Mat_R2[i] = p->Y;
+		ptr_Mat_R3[i] = p->Z;
 		i++;
 	}
 }
 
-void Utils::transformPoint(XnPoint3D* p3D, CameraProperties* cam)
+void Utils::transformPoint(XnPoint3D* p3D, const CameraProperties& cam)
 {
 	CvMat* pointMat = cvCreateMat(3,1,CV_32FC1);
 	fillTheMatrix(pointMat, p3D, 3,1);
 
 	CvMat* tmp = cvCreateMat(3,1, CV_32FC1);
-	cvMatMul(cam->getRotationMatrix(), pointMat, tmp);
+	cvMatMul(cam.getRotationMatrix(), pointMat, tmp);
 
 
-	CvMat* transT = cvCreateMat(3,1, CV_32FC1);
-	cvTranspose(cam->getTranslationMatrix(), transT);
+//	CvMat* transT = cvCreateMat(3,1, CV_32FC1);
+//	cvTranspose(cam.getTranslationMatrix(), transT);
 	CvMat* outMat = cvCreateMat(3,1,CV_32FC1);
-	cvAdd(tmp, transT, outMat);
+	cvAdd(tmp, cam.getTranslationMatrix(), outMat);
 
 	p3D->X = *(outMat->data.fl);
 	p3D->Y = *(outMat->data.fl + outMat->step/(sizeof(float)));
@@ -1262,6 +1284,6 @@ void Utils::transformPoint(XnPoint3D* p3D, CameraProperties* cam)
 
 	cvReleaseMat(&pointMat);
 	cvReleaseMat(&tmp);
-	cvReleaseMat(&transT);
+//	cvReleaseMat(&transT);
 	cvReleaseMat(&outMat);
 }
